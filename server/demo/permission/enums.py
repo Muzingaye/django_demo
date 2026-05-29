@@ -1,0 +1,108 @@
+from collections.abc import Iterable
+from enum import Enum
+
+from django.conf import settings
+from django.db.models import QuerySet
+
+from .models import Permission
+
+class BasePermissionEnum(Enum):
+    @property
+    def codename(self):
+        return self.value.split(".")[1]
+
+
+class CheckoutPermissions(BasePermissionEnum):
+    MANAGE_CHECKOUTS = "checkout.manage_checkouts"
+    HANDLE_CHECKOUTS = "checkout.handle_checkouts"
+    HANDLE_TAXES = "checkout.handle_taxes"
+    MANAGE_TAXES = "checkout.manage_taxes"
+
+    
+class AccountPermissions(BasePermissionEnum):
+    MANAGE_USERS = "account.manage_users"
+    MANAGE_STAFF = "account.manage_staff"
+    IMPERSONATE_USER = "account.impersonate_user"
+
+class AppPermission(BasePermissionEnum):
+    MANAGE_APPS = "app.manage_apps"
+    MANAGE_OBSERVABILITY = "app.manage_observability"
+
+PERMISSIONS_ENUMS = [
+    AccountPermissions,
+]
+
+
+def get_permissions_codename():
+    permissions_values = [
+        enum.codename
+        for pem_enum in PERMISSIONS_ENUMS
+        for enum in pem_enum
+    ]
+    return permissions_values
+
+
+
+def get_permissions_enum_list():
+    permissions_list = [
+        (enum.name, enum.value)
+        for perm_enum in PERMISSIONS_ENUMS
+        for enum in perm_enum
+    ]
+    return permissions_list
+
+
+def get_permissions_enum_dict():
+    return {
+        enum.name: enum
+        for perm_enum in PERMISSIONS_ENUMS
+        for enum in perm_enum
+    }
+
+def get_permissions_from_names(names:list[str]):
+    """Convert list of permission name - [MANAGE_ORDERS] to Permission db objects."""
+    permissions = get_permissions_enum_dict()
+    return get_permissions([permissions[name].value for name in names]) 
+
+
+def get_permission_names(permissions: Iterable[Permission]):
+    """_summary_
+    Convert Permissions db objects to list of Permission enums.
+
+    Args:
+        permissions (Iterable[Permission]): _description_
+    """
+    permission_dict = get_permissions_enum_dict()
+    names = set()
+    for perm in permissions:
+        for _, perm_enum in permission_dict.items():
+            if perm.codename ==  perm_enum.codename:
+                names.add(perm_enum.name)
+    return names
+
+def split_permission_codename(permissions):
+    return [perm.split(".")[1] for perm in permissions]
+
+def get_permissions(
+        permissions = None,
+        database_connection_name: str = settings.DATABASE_CONNECTION_DEFAULT_NAME,
+):
+    
+    if permissions is None:
+        codenames = get_permissions_codename()
+    else:
+        codenames = split_permission_codename(permissions)
+    return get_permissions_from_names(codenames,database_connection_name)
+
+
+
+def get_permissions_from_codenames(
+        permission_codenames: list[str],
+        database_connection_name: str = settings.DATABASE_CONNECTION_DEFAULT_NAME
+) -> QuerySet:
+    return (
+        Permission.objects.using(database_connection_name)
+        .filter(codename__in=permission_codenames)
+        .prefetch_related("content_type")
+        .order_by("codename")
+    )
