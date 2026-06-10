@@ -96,6 +96,7 @@ INSTALLED_APPS =    [
     # local apps
     "permission",
     # "auth",
+    'orders',
     "account",
     "core",
     "api",
@@ -176,6 +177,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+DEFAULT_COUNTRY: str = os.environ.get("DEFAULT_COUNTRY", "US")
+DEFAULT_DECIMAL_PLACES = 3
+DEFAULT_MAX_DIGITS = 20
+DEFAULT_CURRENCY_CODE_LENGTH = 3
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/

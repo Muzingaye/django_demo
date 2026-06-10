@@ -1,6 +1,6 @@
 from datetime import datetime
 import time
-import pandas as pd
+# import pandas as pd
 from decimal import Decimal
 from typing import Dict, Any, Optional, Callable, List
 from uuid import uuid4
@@ -9,7 +9,7 @@ from  django.db.models import QuerySet
 from django.db import models, connection
 from django.core.cache import cache
 from django.conf import settings
-
+from django.utils.timezone import now
 
 from . import (OrderStatus, OrderAuthorizeStatus, OrderChargeStatus, OrderOrigin)
 
@@ -23,14 +23,14 @@ def __get_cache_expiry_datetime(key):
 
 
 
-def __get_order_number():
+def get_order_number():
     with connection.cursor as c:
         c.execute("SELECT nextval('order_order_number_seq')")
         return c.fetchone()[0]
 
 class Order(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False, unique=True, default=    id = models.UUIDField(primary_key=True, editable=False, unique=True, default=uuid4))
-    number = models.IntegerField(unique=True, default=__get_order_number, editable=False)
+    id = models.UUIDField(primary_key=True, editable=False, unique=True, default= uuid4)
+    number = models.IntegerField(unique=True, default= get_order_number, editable=False)
     use_old_id = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=now, editable=False)
     updated_at = models.DateTimeField(auto_now=True, editable=False, db_index=True)
@@ -91,20 +91,20 @@ class Order(models.Model):
         max_length=settings.DEFAULT_CURRENCY_CODE_LENGTH,
     )
 
-    shipping_method = models.ForeignKey(
-        ShippingMethod,
-        blank=True,
-        null=True,
-        related_name="orders",
-        on_delete=models.SET_NULL,
-    )
-    collection_point = models.ForeignKey(
-        "warehouse.Warehouse",
-        blank=True,
-        null=True,
-        related_name="orders",
-        on_delete=models.SET_NULL,
-    )
+    # shipping_method = models.ForeignKey(
+    #     ShippingMethod,
+    #     blank=True,
+    #     null=True,
+    #     related_name="orders",
+    #     on_delete=models.SET_NULL,
+    # )
+    # collection_point = models.ForeignKey(
+    #     "Warehouse",
+    #     blank=True,
+    #     null=True,
+    #     related_name="orders",
+    #     on_delete=models.SET_NULL,
+    # )
     shipping_method_name = models.CharField(
         max_length=255, null=True, default=None, blank=True, editable=False
     )
@@ -175,12 +175,12 @@ class Order(models.Model):
     shipping_tax_rate = models.DecimalField(
         max_digits=5, decimal_places=4, blank=True, null=True
     )
-    shipping_tax_class = models.ForeignKey(
-        "tax.TaxClass",
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-    )
+    # shipping_tax_class = models.ForeignKey(
+    #     "TaxClass",
+    #     on_delete=models.SET_NULL,
+    #     blank=True,
+    #     null=True,
+    # )
     shipping_tax_class_name = models.CharField(max_length=255, blank=True, null=True)
 
 
@@ -194,9 +194,6 @@ class Order(models.Model):
         pass
 
 
-
-
-
     @classmethod
     def _fetch_data_cache(cls, refresh: bool, startup: bool, force_reload: bool, key: str, 
                          stale_key: str, sql: str, params=None, cache_timeout: int = 300, stale_cache_timeout: int = 3600, 
@@ -204,7 +201,6 @@ class Order(models.Model):
        
         active_cache_flag = f"{key}:lock"
 
-        
         stale_data = cache.get(stale_key)
 
         if not refresh and not startup and not force_reload:
