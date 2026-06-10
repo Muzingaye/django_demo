@@ -8,12 +8,25 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.db.models.expressions import Exists, OuterRef 
 from django.db import models
-from django.db.models import Q, Value, Index
+from django.db.models import Q, Value, Index, JSONField
+from django.db import connection
 from django.forms.models import model_to_dict
 from django_countries.fields import Country, CountryField
 # from ..app.models import App
+from utils.json_serializer import CustomJsonEncoder
 from permission.enums import AccountPermissions, BasePermissionEnum, get_permissions
 from permission.models import Permission, PermissionsMixin, _user_has_perm
+
+
+# from demo.permission import 
+
+class ModelWithMetadata(models.Model):
+    private_metadata = JSONField(
+        blank=True, db_default={}, default=dict, encoder=CustomJsonEncoder
+    )
+    metadata = JSONField(
+        blank=True, db_default={},encoder=CustomJsonEncoder
+    )
 
 class AddressQueryset(models.QuerySet["Address"]):
     def annotate_default(self, user):
@@ -49,9 +62,7 @@ class Address(models.Model):
     # phone = PossiblePhoneNumberField(blank=True, default="", db_index=True)
     validation_skipped = models.BooleanField(default=False)
 
-
     objects = AddressManager()
-
 
     class Meta:
         ordering = ("pk"),
@@ -84,10 +95,7 @@ class Address(models.Model):
         return Address.objects.create(**self.as_data())
     
 
-
-
-
-class UserManager():
+class UserManager(BaseUserManager["User"]):
     def customer(self):
         pass
 
@@ -145,6 +153,7 @@ class User(PermissionsMixin):
         )
         # TODO model meta data
         indexes = [
+
         ]
 
     def __init__(self, *args, **kwargs):
@@ -188,7 +197,7 @@ class User(PermissionsMixin):
     @effective_permissions.setter
     def effective_permissions(self, value: models.QuerySet[Permission]):
         self._effective_permissions = value
-        # Droped cache for authenticate backend
+        # Dropped cache for authenticate backend
         self._effective_permissions = None
 
 
