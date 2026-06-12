@@ -5,7 +5,8 @@ from decimal import Decimal
 from typing import Dict, Any, Optional, Callable, List
 from uuid import uuid4
 
-from  django.db.models import QuerySet
+from django.conf import settings
+from django.db.models import QuerySet
 from django.db import models, connection
 from django.core.cache import cache
 from django.conf import settings
@@ -22,7 +23,34 @@ def __get_cache_expiry_datetime(key):
     return datetime.now()
 
 
+class OrderQueryset(models.QuerySet["Order"]):
+    def get_by_checkout_token(self, token):
+        return self.non_draft().filter(checkout_token=token).first()
+    
 
+    def non_draft(self):
+        return self.exclude(status=OrderStatus.DRAFT)
+    
+    def confirmed(self):
+        return self.exclude(status__in=[OrderStatus.DRAFT, OrderStatus.UNCONFIRMED])
+
+
+    def draft(self):
+        return self.filter(status=OrderStatus.DRAFT)
+    
+
+    def ready_to_fulfill(self):
+        pass
+
+    def ready_to_capture(self):
+        pass
+
+    def ready_to_confirm(self):
+        """Return unconfirmed orders."""
+        return self.filter(status=OrderStatus.UNCONFIRMED)
+
+
+OrderManager = models.Manager.from_queryset(OrderQueryset)
 def get_order_number():
     with connection.cursor as c:
         c.execute("SELECT nextval('order_order_number_seq')")
@@ -183,6 +211,72 @@ class Order(models.Model):
     # )
     shipping_tax_class_name = models.CharField(max_length=255, blank=True, null=True)
 
+
+
+    objects = OrderManager()
+
+    class Meta:
+        indexes = [
+        #   *ModelWithMetadata.Meta.indexes,
+
+        # search_document
+        models.Index(
+            fields=["search_document"],
+            name="order_search_idx",
+        ),
+
+        # search_vector
+        models.Index(
+            fields=["search_vector"],
+            name="order_tsearch_idx",
+        ),
+
+        # user_email
+        models.Index(
+            fields=["user_email"],
+            name="order_email_search_idx",
+        ),
+
+        models.Index(
+            fields=["created_at"],
+            name="idx_order_created_at",
+        ),
+
+        models.Index(
+            fields=["voucher_code"],
+            name="order_voucher_code_idx",
+        ),
+
+        models.Index(
+            fields=["user_email", "user_id"],
+            name="order_user_email_user_id_idx",
+        ),
+
+        models.Index(
+            fields=["checkout_token"],
+            name="checkout_token_idx",
+        ),
+
+        models.Index(
+            fields=["lines_count"],
+            name="lines_count_idx",
+        ),
+
+        models.Index(
+            fields=["total_gross_amount"],
+            name="order_totalgrossamount_idx",
+        ),
+
+        models.Index(
+            fields=["total_net_amount"],
+            name="order_totalnetamount_idx",
+        ),
+
+        models.Index(
+            fields=["status"],
+            name="order_status_idx",
+        ),
+    ]
 
     @classmethod
     def __get_cache_expiry_datetime(cls):
